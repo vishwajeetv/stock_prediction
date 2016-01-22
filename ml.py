@@ -1,7 +1,7 @@
 import Quandl
 import numpy as np
 import array
-from sklearn import datasets,linear_model, svm, cross_validation, neural_network
+from sklearn import datasets,linear_model, svm, cross_validation
 from sklearn.cross_validation import train_test_split
 import matplotlib.pyplot as plotter
 import pandas
@@ -11,7 +11,8 @@ import csv
 # stock = np.array(stock)
 # currentRatio = Quandl.get("DEB/INFY_A_CRATIO")
 
-reader = pandas.io.parsers.read_csv("data/all-stocks-cleaned.csv")
+# reader = pandas.io.parsers.read_csv("data/all-stocks-cleaned.csv")
+reader = pandas.io.parsers.read_csv("data/TATAMOTORS/NSE-TATAMOTORS.csv")
 reader = reader.fillna(method='ffill')
 stock = np.array(reader)
 
@@ -53,18 +54,14 @@ predicted2 = clf.predict(openingPriceTest)
 score = clf.fit(openingPriceTrain, closingPriceTrain).score(openingPriceTest,closingPriceTest)
 print(score)
 print(cross_validation.cross_val_score(clf,openingPriceTest,closingPriceTest))
-# plotter.scatter(openingPriceTest, closingPriceTest,  color='black')
-plotter.plot(closingPriceTest, clf.predict(openingPriceTest))
+fig, ax = plotter.subplots()
+ax.scatter(openingPriceTrain, closingPriceTrain)
+ax.scatter(closingPriceTest, clf.predict(openingPriceTest))
+ax.set_xlabel('Measured')
+ax.set_ylabel('Predicted')
 plotter.show()
 
+openingPriceToPredict = np.array([340.65])
+print(clf.predict(openingPriceToPredict))
 
-# mlpr = neural_network.MLPRegressor(10)
-# mlpr.fit(openingPriceTrain, closingPriceTrain)
-# predicted2 = mlpr.predict(openingPriceTest)
-# # score = mlpr.fit(openingPriceTrain, closingPriceTrain).score(openingPriceTest,closingPriceTest)
-# # print(score)
-# # print(cross_validation.cross_val_score(clf,openingPriceTest,closingPriceTest))
-# plotter.scatter(openingPriceTest, closingPriceTest,  color='black')
-# plotter.plot(closingPriceTest, mlpr.predict(openingPriceTest))
-# plotter.show()
 
