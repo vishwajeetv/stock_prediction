@@ -13,12 +13,13 @@ def readData():
     # stock = np.array(stock)
     # currentRatio = Quandl.get("DEB/INFY_A_CRATIO")
     # reader = pandas.io.parsers.read_csv("data/all-stocks-cleaned.csv")
+    file = "data/TC1-RELIANCE.csv"
     # reader = pandas.read_csv("data/TATAMOTORS/NSE-TATAMOTORS.csv",index_col='Date',parse_dates = True )
-    df = pandas.read_csv("data/TATAMOTORS/NSE-TATAMOTORS.csv", parse_dates=True, index_col='Date',
-                         usecols=['Date', 'Close'])
+    df = pandas.read_csv(file, parse_dates=True, index_col='Date',
+                         usecols=['Date', 'Close Price'])
     df = df.fillna(method='ffill')
     # df = df.dropna()
-    dfAll = pandas.read_csv("data/TATAMOTORS/NSE-TATAMOTORS.csv", parse_dates=True, index_col='Date')
+    dfAll = pandas.read_csv(file)
     dfAll = dfAll.fillna(method='ffill')
     stock = np.array(dfAll)
     # plotter.xlabel('Date')
@@ -27,8 +28,8 @@ def readData():
 
 
 def plot(df):
-    rollingMean = pandas.rolling_mean(df['Close'], window=100)
-    rollingStdv = pandas.rolling_std(df['Close'], window=100)
+    rollingMean = pandas.rolling_mean(df['Close Price'], window=100)
+    rollingStdv = pandas.rolling_std(df['Close Price'], window=100)
     plotter.plot(rollingMean)
     # plotting bollinger bands
     plotter.plot(rollingMean + rollingStdv * 2)
@@ -61,24 +62,34 @@ def predict(data):
     clf.fit(openingPriceTrain, closingPriceTrain)
     predicted2 = clf.predict(openingPriceTest)
     score = clf.fit(openingPriceTrain, closingPriceTrain).score(openingPriceTest, closingPriceTest)
-    print(score)
+    # print(score)
     fig, ax = plotter.subplots()
     ax.scatter(openingPriceTrain, closingPriceTrain)
     ax.scatter(closingPriceTest, clf.predict(openingPriceTest))
     ax.set_xlabel('Measured')
     ax.set_ylabel('Predicted')
-    plotter.show()
-    openingPriceToPredict = np.array([335.50])
+    # plotter.show()
+    openingPriceToPredict = np.array([976.40])
     print(clf.predict(openingPriceToPredict))
     return clf.predict(np.array([openingPriceToPredict]))
 
+def calculateDailyReturns(df):
+    dailyReturns = (df/df.shift(1)) - 1
+    # dailyReturns.ix[0,:] = 0
+    # cumulativeReturns =  (df/df['Close'][0]) - 1
+    # dailyReturns = df['Close'].pct_change(1)
+    plotter.plot(dailyReturns)
+    # dailyReturns.hist(bins=100)
+    plotter.show()
 
 if __name__ == "__main__":
 
     df, stock = readData()
 
     # plot(df)
-
+    df = df.ix[500:1000,:]
+    # calculateDailyReturns(df)
     sampledData = sample(stock)
 
     predict(sampledData)
+
