@@ -6,14 +6,16 @@ from sklearn.cross_validation import train_test_split
 import matplotlib.pyplot as plotter
 import pandas
 import csv
-
+from sklearn.neighbors import KNeighborsRegressor
+from scipy.stats.stats import pearsonr
+from sklearn.ensemble import RandomForestRegressor
 
 def readData():
     # stock = Quandl.get("NSE/INFY")
     # stock = np.array(stock)
     # currentRatio = Quandl.get("DEB/INFY_A_CRATIO")
     # reader = pandas.io.parsers.read_csv("data/all-stocks-cleaned.csv")
-    file = "data/TC1-RELIANCE.csv"
+    file = "data/TC1-HDFCBANK.csv"
     # reader = pandas.read_csv("data/TATAMOTORS/NSE-TATAMOTORS.csv",index_col='Date',parse_dates = True )
     df = pandas.read_csv(file, parse_dates=True, index_col='Date',
                          usecols=['Date', 'Close Price'])
@@ -53,8 +55,46 @@ def sample(stock):
                    "openingPriceTest":openingPriceTest, "closingPriceTest":closingPriceTest}
     return sampledData
 
+def predictRandomForestReg(data, priceToPredict):
+    openingPriceTrain, openingPriceTest, closingPriceTrain, closingPriceTest = \
+        data["openingPriceTrain"], data["openingPriceTest"], data["closingPriceTrain"], data["closingPriceTest"]
+    k = 10
+    clf = RandomForestRegressor(n_estimators=k)
+    clf = clf.fit(openingPriceTrain, closingPriceTrain)
+    openingPriceToPredict = np.array([priceToPredict])
+    print(clf.predict(openingPriceToPredict))
 
-def predict(data):
+def predictKnn(data, priceToPredict):
+    corelationCoefficiantDictionary = {}
+    corelationCoefficiantArray = []
+    openingPriceTrain, openingPriceTest, closingPriceTrain, closingPriceTest = \
+        data["openingPriceTrain"], data["openingPriceTest"], data["closingPriceTrain"], data["closingPriceTest"]
+
+    for k in range( 1 , 100 , 1):
+        neigh = KNeighborsRegressor(n_neighbors=k)
+        #n = 7 best fits
+        neigh.fit(openingPriceTrain, closingPriceTrain)
+
+        closingPriceTestArray = np.reshape(closingPriceTest,-1)
+        knnpr = neigh.predict(openingPriceTest)
+        predictedArray = np.reshape(knnpr,-1)
+
+        corelationCoefficient = pearsonr(closingPriceTestArray,predictedArray)
+        corelationCoefficiantDictionary[k] = corelationCoefficient[0]
+        corelationCoefficiantArray.append(corelationCoefficient[0])
+    plotter.plot(corelationCoefficiantArray)
+    # plotter.show()
+
+    bestK = max(corelationCoefficiantDictionary, key=corelationCoefficiantDictionary.get)
+    neighBest = KNeighborsRegressor(n_neighbors=bestK)
+    neighBest.fit(openingPriceTrain, closingPriceTrain)
+    openingPriceToPredict = np.array([priceToPredict])
+    print("K = ")
+    print(bestK)
+    print(neighBest.predict(openingPriceToPredict))
+
+
+def predict(data, priceToPredict):
 
     openingPriceTrain, openingPriceTest, closingPriceTrain, closingPriceTest = \
         data["openingPriceTrain"], data["openingPriceTest"], data["closingPriceTrain"], data["closingPriceTest"]
@@ -63,13 +103,21 @@ def predict(data):
     predicted2 = clf.predict(openingPriceTest)
     score = clf.fit(openingPriceTrain, closingPriceTrain).score(openingPriceTest, closingPriceTest)
     # print(score)
+
     fig, ax = plotter.subplots()
     ax.scatter(openingPriceTrain, closingPriceTrain)
+    ax.set_ylabel('Predicted SVM')
     ax.scatter(closingPriceTest, clf.predict(openingPriceTest))
     ax.set_xlabel('Measured')
     ax.set_ylabel('Predicted')
     # plotter.show()
-    openingPriceToPredict = np.array([976.40])
+
+    closingPriceTestArray = np.reshape(closingPriceTest,-1)
+    clfpr = clf.predict(openingPriceTest)
+    predictedArray = np.reshape(clfpr,-1)
+    print(pearsonr(closingPriceTestArray,predictedArray))
+
+    openingPriceToPredict = np.array([priceToPredict])
     print(clf.predict(openingPriceToPredict))
     return clf.predict(np.array([openingPriceToPredict]))
 
@@ -82,6 +130,7 @@ def calculateDailyReturns(df):
     # dailyReturns.hist(bins=100)
     plotter.show()
 
+
 if __name__ == "__main__":
 
     df, stock = readData()
@@ -90,6 +139,11 @@ if __name__ == "__main__":
     df = df.ix[500:1000,:]
     # calculateDailyReturns(df)
     sampledData = sample(stock)
-
-    predict(sampledData)
+    priceToPredict = 1185.90
+    print("SVM Prediction:")
+    predict(sampledData, priceToPredict)
+    print("KNN Prediction:")
+    predictKnn(sampledData, priceToPredict)
+    print("Random Forest Regressor Prediction:")
+    predictRandomForestReg(sampledData, priceToPredict)
 
