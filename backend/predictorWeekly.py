@@ -54,41 +54,58 @@ def calculateBollingerBandsValue(df):
     bollingerBandsValue = bollingerBandsValue.dropna()
     return bollingerBandsValue
 
-def knnPredictor(df):
-
-    bbValTrain = df[['Close Price BBVal']]
-    bbValTrain = np.reshape(bbValTrain, (bbValTrain.size, 1))
-    # print(bbValTrain)
-
-    ptChangeTrain = df[['Close Price PtChange']]
-    ptChangeTrain = np.reshape(ptChangeTrain, (ptChangeTrain.size, 1))
-    # print(ptChangeTrain)
-    neigh = KNeighborsRegressor(n_neighbors=10)
-    # n = 7 best fits
-    neigh.fit(bbValTrain, ptChangeTrain)
-    # closingPriceTestArray = np.reshape(closingPriceTest, -1)
-    knnpr = neigh.predict([-0.568675])
-    predictedArray = np.reshape(knnpr, -1)
-    print(predictedArray)
-    return df
-
 def mergeAll(df):
     changeInPrice = calculateChangeInPrice(df)
-    # print(changeInPrice)
     bollingerBandsValue = calculateBollingerBandsValue(df)
     dfMerged = df.merge(changeInPrice, how='inner', left_index=True, right_index=True, suffixes=('', ' PtChange'))
     dfMerged = dfMerged.merge(bollingerBandsValue, how='inner', left_index=True, right_index=True, suffixes=('', ' BBVal'))
-    # print(dfMerged.head())
     return dfMerged
+
+def getLearnableData(df):
+    bbVal = df[['Close Price BBVal']]
+    bbVal = np.reshape(bbVal, (bbVal.size, 1))
+
+    ptChange = df[['Close Price PtChange']]
+    ptChange = np.reshape(ptChange, (ptChange.size, 1))
+
+    return bbVal, ptChange
+
+def knnPredictor(df):
+
+    dfTrain = df.ix["2015-05-01":"2013-05-01"]
+    dfTrainMerged = mergeAll(dfTrain)
+
+    dfTest = df.ix["2016-05-01":"2015-04-01"]
+    dfTestMerged = mergeAll(dfTest)
+
+    bbValTrain, ptChangeTrain = getLearnableData(dfTrainMerged)
+
+    bbValTest, ptChangeTest = getLearnableData(dfTestMerged)
+
+    neigh = KNeighborsRegressor(n_neighbors=10)
+    neigh.fit(bbValTrain, ptChangeTrain)
+
+    knnpr = neigh.predict(bbValTest)
+
+    fig, ax = plotter.subplots()
+
+    ax.set_ylabel('Predicted KNN Weekly')
+    ax.scatter(ptChangeTest, neigh.predict(bbValTest))
+    ax.set_xlabel('Measured')
+    ax.set_ylabel('Predicted')
+    plotter.show()
+
+    predictedArray = np.reshape(knnpr, -1)
+    print(predictedArray)
 
 if __name__ == "__main__":
 
     df = readData()
-    dfTest = df.ix["2016-05-30":"2016-05-20"]
-    df = df.ix["2016-05-01":"2015-05-01"]
-    dfMerged = mergeAll(df)
-    (knnPredictor(dfMerged))
-    priceToPredict = 1185.90
+
+    knnPredictor(df)
+
+
+    # priceToPredict = 1185.90
 
     bollingerBandsValue = calculateBollingerBandsValue(dfTest)
     # print(bollingerBandsValue)
