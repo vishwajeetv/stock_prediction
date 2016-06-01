@@ -11,7 +11,7 @@ from sklearn.ensemble import RandomForestRegressor
 import datetime as dt
 
 def readData():
-    file = "data/TC1-HDFCBANK.csv"
+    file = "data/TC1-RELIANCE.csv"
     # reader = pandas.read_csv("data/TATAMOTORS/NSE-TATAMOTORS.csv",index_col='Date',parse_dates = True )
     df = pandas.read_csv(file, parse_dates=True, index_col='Date', usecols=['Date', 'Close Price']).fillna(
         method='ffill')
@@ -54,11 +54,19 @@ def calculateBollingerBandsValue(df):
     bollingerBandsValue = bollingerBandsValue.dropna()
     return bollingerBandsValue
 
+def calculateSimpleMovingAverage(df):
+    simpleMovingAverage = pandas.rolling_mean(df,window=5)
+    simpleMovingAverage = normalize(simpleMovingAverage)
+    simpleMovingAverage = calculateSimpleMovingAverage.dropna()
+    return simpleMovingAverage
+
 def mergeAll(df):
     changeInPrice = calculateChangeInPrice(df)
     bollingerBandsValue = calculateBollingerBandsValue(df)
+    simpleMovingAverage = calculateSimpleMovingAverage(df)
     dfMerged = df.merge(changeInPrice, how='inner', left_index=True, right_index=True, suffixes=('', ' PtChange'))
     dfMerged = dfMerged.merge(bollingerBandsValue, how='inner', left_index=True, right_index=True, suffixes=('', ' BBVal'))
+    dfMerged = dfMerged.merge(simpleMovingAverage, how='inner', left_index=True, right_index=True, suffixes=('', ' BBVal'))
     return dfMerged
 
 def getLearnableData(df):
@@ -70,44 +78,100 @@ def getLearnableData(df):
 
     return bbVal, ptChange
 
+def randomForestPredictor(df):
+
+    bbValTest, bbValTrain, ptChangeTest, ptChangeTrain = sample(df)
+
+    corelationCoefficiantDictionary = {}
+    corelationCoefficiantArray = []
+
+    for k in range(1, 100, 1):
+        rfsModel = RandomForestRegressor(n_estimators=k)
+        rfsModel.fit(bbValTrain, ptChangeTrain)
+
+        rfspredicted = rfsModel.predict(bbValTest)
+        rfspredicted = np.reshape(rfspredicted, (rfspredicted.size, 1))
+        corelationCoefficient = pearsonr(bbValTest, rfspredicted)
+        corelationCoefficiantDictionary[k] = corelationCoefficient[0]
+        corelationCoefficiantArray.append(corelationCoefficient[0])
+
+    plotter.plot(corelationCoefficiantArray)
+    # plotter.show()
+    bestK = max(corelationCoefficiantDictionary, key=corelationCoefficiantDictionary.get)
+
+    rfsModelBest = RandomForestRegressor(n_estimators=bestK)
+
+    rfsModelBest.fit(bbValTrain, ptChangeTrain)
+    print("K = ")
+    print(bestK)
+    print("Correlation Coefficient =")
+    print(corelationCoefficiantDictionary[bestK])
+    rfsPredictedBest = rfsModelBest.predict(bbValTest)
+
+    fig, ax = plotter.subplots()
+
+    ax.set_ylabel('Predicted RandomForest Weekly')
+    ax.scatter(ptChangeTest, rfsPredictedBest)
+    ax.set_xlabel('Measured')
+    plotter.show()
+
+
+def sample(df):
+    dfTrain = df.ix["2015-05-01":"2010-05-01"]
+    dfTrainMerged = mergeAll(dfTrain)
+    dfTest = df.ix["2016-05-01":"2015-05-01"]
+    dfTestMerged = mergeAll(dfTest)
+    bbValTrain, ptChangeTrain = getLearnableData(dfTrainMerged)
+    bbValTest, ptChangeTest = getLearnableData(dfTestMerged)
+    return bbValTest, bbValTrain, ptChangeTest, ptChangeTrain
+
+
 def knnPredictor(df):
 
-    dfTrain = df.ix["2015-05-01":"2013-05-01"]
-    dfTrainMerged = mergeAll(dfTrain)
+    bbValTest, bbValTrain, ptChangeTest, ptChangeTrain = sample(df)
 
-    dfTest = df.ix["2016-05-01":"2015-04-01"]
-    dfTestMerged = mergeAll(dfTest)
+    corelationCoefficiantDictionary = {}
+    corelationCoefficiantArray = []
 
-    bbValTrain, ptChangeTrain = getLearnableData(dfTrainMerged)
+    for k in range(1, 200, 1):
+        knnModel = KNeighborsRegressor(n_neighbors=k)
+        knnModel.fit(bbValTrain, ptChangeTrain)
 
-    bbValTest, ptChangeTest = getLearnableData(dfTestMerged)
+        knnpredicted = knnModel.predict(bbValTest)
+        corelationCoefficient = pearsonr(bbValTest, knnpredicted)
+        corelationCoefficiantDictionary[k] = corelationCoefficient[0]
+        corelationCoefficiantArray.append(corelationCoefficient[0])
 
-    neigh = KNeighborsRegressor(n_neighbors=10)
-    neigh.fit(bbValTrain, ptChangeTrain)
+    # plotter.plot(corelationCoefficiantArray)
+    bestK = max(corelationCoefficiantDictionary, key=corelationCoefficiantDictionary.get)
 
-    knnpr = neigh.predict(bbValTest)
+    knnModelBest = KNeighborsRegressor(n_neighbors=bestK)
+
+    knnModelBest.fit(bbValTrain, ptChangeTrain)
+    print("K = ")
+    print(bestK)
+    print("Corelation Coeff:")
+    print(corelationCoefficiantDictionary[bestK])
+    knnpredictedBest = knnModelBest.predict(bbValTest)
 
     fig, ax = plotter.subplots()
 
     ax.set_ylabel('Predicted KNN Weekly')
-    ax.scatter(ptChangeTest, neigh.predict(bbValTest))
+    ax.scatter(ptChangeTest, knnpredictedBest)
     ax.set_xlabel('Measured')
-    ax.set_ylabel('Predicted')
     plotter.show()
-
-    predictedArray = np.reshape(knnpr, -1)
-    print(predictedArray)
 
 if __name__ == "__main__":
 
     df = readData()
 
     knnPredictor(df)
+    # randomForestPredictor(df)
 
 
     # priceToPredict = 1185.90
 
-    bollingerBandsValue = calculateBollingerBandsValue(dfTest)
+    # bollingerBandsValue = calculateBollingerBandsValue(dfTest)
     # print(bollingerBandsValue)
 
 
