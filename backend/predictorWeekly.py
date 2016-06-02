@@ -12,7 +12,7 @@ import datetime as dt
 import sklearn.ensemble as ensemble
 
 def readData():
-    file = "data/TC1-HDFCBANK.csv"
+    file = "data/TC1-ONGC.csv"
     # reader = pandas.read_csv("data/TATAMOTORS/NSE-TATAMOTORS.csv",index_col='Date',parse_dates = True )
     df = pandas.read_csv(file, parse_dates=True, index_col='Date', usecols=['Date', 'Close Price']).fillna(
         method='ffill')
@@ -75,7 +75,7 @@ def sample(df):
     dataTestX, dataTestY = getLearnableData(dfTestMerged)
     return dataTrainX, dataTrainY, dataTestX, dataTestY
 
-def svrPredictor(df):
+def adbPredictor(df):
     dataTrainX, dataTrainY, dataTestX, dataTestY = sample(df)
 
     # clf = linear_model.SGDRegressor()
@@ -179,7 +179,7 @@ if __name__ == "__main__":
 
     knnPredictor(df)
     # randomForestPredictor(df)
-    # svrPredictor(df)
+    # adbPredictor(df)
 
 
     # priceToPredict = 1185.90
