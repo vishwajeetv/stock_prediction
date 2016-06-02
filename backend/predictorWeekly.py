@@ -9,6 +9,7 @@ from sklearn.neighbors import KNeighborsRegressor
 from scipy.stats.stats import pearsonr
 from sklearn.ensemble import RandomForestRegressor
 import datetime as dt
+import sklearn.ensemble as ensemble
 
 def readData():
     file = "data/TC1-HDFCBANK.csv"
@@ -66,7 +67,7 @@ def getLearnableData(df):
     return dataX, dataY
 
 def sample(df):
-    dfTrain = df.ix["2015-05-01":"2013-05-01"]
+    dfTrain = df.ix["2015-05-01":"2012-05-01"]
     dfTrainMerged = mergeAll(dfTrain)
     dfTest = df.ix["2016-05-01":"2015-05-01"]
     dfTestMerged = mergeAll(dfTest)
@@ -77,7 +78,8 @@ def sample(df):
 def svrPredictor(df):
     dataTrainX, dataTrainY, dataTestX, dataTestY = sample(df)
 
-    clf = svm.LinearSVR()
+    # clf = linear_model.SGDRegressor()
+    clf = ensemble.AdaBoostRegressor()
     clf.fit(dataTrainX, dataTrainY)
 
     predicted = clf.predict(dataTestX)
@@ -91,6 +93,7 @@ def svrPredictor(df):
     corrCoeff = pearsonr(dataTestY,predicted)
     print(corrCoeff[0])
     plotter.show()
+    return predicted
 
 def knnPredictor(df):
 
@@ -121,7 +124,8 @@ def knnPredictor(df):
     knnpredictedBest = knnModelBest.predict(dataTestX)
 
     fig, ax = plotter.subplots()
-
+    corelationCoefficient = pearsonr(dataTestY, knnpredictedBest)
+    print(corelationCoefficient[0])
     ax.set_ylabel('Predicted KNN Weekly')
     ax.scatter(dataTestY, knnpredictedBest)
     ax.set_xlabel('Measured')
@@ -173,9 +177,9 @@ if __name__ == "__main__":
 
     df = readData()
 
-    # knnPredictor(df)
+    knnPredictor(df)
     # randomForestPredictor(df)
-    svrPredictor(df)
+    # svrPredictor(df)
 
 
     # priceToPredict = 1185.90
