@@ -7,82 +7,54 @@ import csv
 import math
 import scipy.optimize as optimizer
 
-def readData(file):
+def readData(file, startDate, endDate):
     prices = pandas.read_csv(file, parse_dates=True, index_col='Date', usecols=['Date', 'Close Price']).fillna(method='ffill')
+    prices = prices.ix[endDate:startDate]
+    print(prices)
+    prices = normalize(prices)
     return prices
 
 def normalize(df):
-    return df/df1['Close Price'][0]
+    dfToDivide = df['Close Price']
+    normalized = dfToDivide.divide(dfToDivide[-1])
+    return normalized
 
-df1 = readData("data/TC1-RELIANCE.csv")
-df2 = readData("data/TC1-HDFCBANK.csv")
-df3 = readData("data/TC1-SUNPHARMA.csv")
-df4 = readData("data/TC1-ONGC.csv")
-# df1 = readData("data/NSE-RELIANCE.csv")
-# df2 = readData("data/NSE-HDFCBANK.csv")
-# df3 = readData("data/NSE-SUNPHARMA.csv")
-# df4 = readData("data/NSE-ONGC.csv")
-
-
-frames = [df1, df2, df3, df4]
-
-allStocks = pandas.concat(frames, keys=['REL', 'HDFC', 'SUN','ONGC'], axis=1)
-allStocks = allStocks.ix['2015-11-30':'2016-05-30']
-
-
-def plotBollingerBands():
-    global allStocks
-    allStocks = allStocks['SUN']
-    rollingMean = pandas.rolling_mean(allStocks, window=10)
-    rollingStdv = pandas.rolling_std(allStocks, window=10)
-    plotter.plot(rollingMean)
-    plotter.plot(rollingMean + rollingStdv * 2)
-    plotter.plot(rollingMean - rollingStdv * 2)
-    plotter.plot(allStocks)
-    plotter.show()
-
-def optimizeCumulativeReturns(allocs, allStocksNormalized):
-    allocs = allStocksNormalized * allocs
+def optimizeCumulativeReturns(allocs, allStocks):
+    allocs = allStocks * allocs
     postvalues = allocs * 100000
     portfolioValues = postvalues.sum(axis=1)
     cumulativeReturns = (portfolioValues[-1] / portfolioValues[0]) - 1
     return cumulativeReturns*-1
 
-def optimizeSharpe(allocs, allStocksNormalized):
-    allocs = allStocksNormalized * allocs
+def optimizeSharpe(allocs, allStocks):
+    allocs = allStocks * allocs
     postvalues = allocs * 100000
     portfolioValues = postvalues.sum(axis=1)
 
     dailyReturns = (portfolioValues / portfolioValues.shift(1)) - 1
-    dailyReturns = dailyReturns[1:]
+    dailyReturns = dailyReturns.ix[0:]
 
     dailyReturnsStD = dailyReturns.std()
     dailyReturnsMean = dailyReturns.mean()
-    k = math.sqrt(125)
     sharpeRatio = dailyReturnsMean / dailyReturnsStD
-    sharpeRatioAnnualized = k * sharpeRatio
-    return sharpeRatioAnnualized*-1
+    return sharpeRatio*-1
 
-def optimizePortfolio(allocs, startvalue):
-    allStocksNormalized = normalize(allStocks)
-    # plotter.plot(allStocksNormalized)
-    # plotter.show()
+def optimizePortfolio(allocs, startvalue, allStocks):
 
-
-    allocsGuess = [0.3,0.3,0.3,0.1]
+    allocsGuess = allocs
 
     cons = ({'type': 'eq', 'fun' : lambda inputs: 1 - (np.sum(np.absolute(inputs)))})
     bnds = [(0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0)]
 
     #optimize for cumulative returns
-    # optimizedOutput = optimizer.minimize(optimizeCumulativeReturns, allocsGuess, args=(allStocksNormalized,) ,
-    #                                    method='SLSQP',  bounds=bnds, constraints=cons,
-    #                                     options={'disp': True})
+    optimizedOutput = optimizer.minimize(optimizeCumulativeReturns, allocsGuess, args=(allStocks,) ,
+                                       method='SLSQP',  bounds=bnds, constraints=cons,
+                                        options={'disp': True})
 
     #optimize for sharpe ratio
-    optimizedOutput = optimizer.minimize(optimizeSharpe, allocsGuess, args=(allStocksNormalized,) ,
-                                           method='SLSQP',  bounds=bnds, constraints=cons,
-                                            options={'disp': True})
+    # optimizedOutput = optimizer.minimize(optimizeSharpe, allocsGuess, args=(allStocks,) ,
+    #                                        method='SLSQP',  bounds=bnds, constraints=cons,
+    #                                         options={'disp': True})
 
     # print("X = {}, Y = {}".format(optimizedOutput.x,optimizedOutput.fun))
     print("REL :"+'{:f}'.format(optimizedOutput.x[0]))
@@ -91,10 +63,10 @@ def optimizePortfolio(allocs, startvalue):
     print("ONGC :"+'{:f}'.format(optimizedOutput.x[3]))
 
     optimizedAllocations = optimizedOutput.x
-    allocationsApplied = allStocksNormalized * optimizedAllocations
+    allocationsApplied = allStocks * optimizedAllocations
     postvalues = allocationsApplied * startvalue
     portfolioValues = postvalues.sum(axis=1)
-    print(portfolioValues.tail())
+    print(portfolioValues.head())
     cumulativeReturns = (portfolioValues[-1] / portfolioValues[0]) - 1
     print(cumulativeReturns)
     plotter.plot(portfolioValues)
@@ -105,14 +77,34 @@ def optimizePortfolio(allocs, startvalue):
     dailyReturnsStD = dailyReturns.std()
     dailyReturnsMean = dailyReturns.mean()
     #252 trading days
-    k = math.sqrt(125)
+    k = math.sqrt(250)
     sharpeRatio = dailyReturnsMean / dailyReturnsStD
     sharpeRatioAnnualized = k * sharpeRatio
     # print(sharpeRatioAnnualized)
 
-startvalue = 100000
-allocs = [0.3,0.3,0.3,0.1]
 
-optimizePortfolio(allocs, startvalue)
+if __name__ == "__main__":
+    startvalue = 100000
+    allocs = [0.3, 0.3, 0.3, 0.1]
 
-# plotBollingerBands()
+    endDate = "2016-01-01"
+    startDate = "2015-01-01"
+    ##startdate end date in context of portfolio
+    df1 = readData("data/TC1-RELIANCE.csv", startDate, endDate)
+    df2 = readData("data/TC1-HDFCBANK.csv", startDate, endDate)
+    df3 = readData("data/TC1-SUNPHARMA.csv", startDate, endDate)
+    df4 = readData("data/TC1-ONGC.csv", startDate, endDate)
+    # df1 = readData("data/NSE-RELIANCE.csv")
+    # df2 = readData("data/NSE-HDFCBANK.csv")
+    # df3 = readData("data/NSE-SUNPHARMA.csv")
+    # df4 = readData("data/NSE-ONGC.csv")
+
+
+    frames = [df1, df2, df3, df4]
+
+    allStocks = pandas.concat(frames, keys=['REL', 'HDFC', 'SUN', 'ONGC'], axis=1)
+    print(allStocks)
+    plotter.plot(allStocks)
+    # plotter.show()
+
+    optimizePortfolio(allocs, startvalue, allStocks)
