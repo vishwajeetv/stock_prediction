@@ -19,6 +19,13 @@ A novice's attempt for (weekly) stock prices prediction and portfolio optimizati
 * Weekly prediction is being done using KNN Regressor using "Bollinger Band Value" and "Simple Moving Average" as input features.
 * Stock porfolio optimizer is done for maximizing the "Sharpe Ratio" or "culumative returns", using scipy minimizer (minimizing for -1 * value)
 
+### How to run?
+* `predictorWeekly.py` is a weekly stock prices predictor.
+* `optimizer.py` is a portfolio optimizer.
+* To run, install python 3 with pip, and then simply install all the libraries mentioned in the script file that you are trying to run, for e.g. pip install pandas
+* Once done, you can just run these like any other python script.
+* Data is already added in the repository under backend/data folder. 
+
 ### Testing and results
 * This application has been tested for National Stock Exchange, India. The weekly predictions have upto 75 % corelation with the actual results, for the leading (largest market capitalization) stocks.
 
